@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">My Gallery</string>
+    <string name="title_activity_browse_folders">Folders</string>
+    <string name="content_description">content description</string>
+    <string name="title_activity_browse_images">Browse Images</string>
+    <string name="title_activity_full_screen_image_gallery">Image</string>
+    <string name="action_select_folder">Select Folder</string>
+</resources>
