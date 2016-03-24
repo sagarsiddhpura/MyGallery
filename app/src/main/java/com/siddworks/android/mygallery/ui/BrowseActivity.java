@@ -21,7 +21,7 @@ import android.view.MenuItem;
 
 import com.nononsenseapps.filepicker.FilePickerActivity;
 import com.siddworks.android.mygallery.R;
-import com.siddworks.android.mygallery.adapters.FolderGalleryAdapter;
+import com.siddworks.android.mygallery.adapters.FolderAdapter;
 import com.siddworks.android.mygallery.util.GridSpacesItemDecoration;
 import com.siddworks.android.mygallery.util.ImageGalleryUtils;
 import com.siddworks.android.mygallery.util.PaletteColorType;
@@ -31,18 +31,22 @@ import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class BrowseFoldersActivity extends AppCompatActivity  implements FolderGalleryAdapter.OnImageClickListener{
+public class BrowseActivity extends AppCompatActivity  implements FolderAdapter.OnImageClickListener{
 
-    // region Member Variables
-    private ArrayList<String> mImages;
     private PaletteColorType mPaletteColorType;
 
     private Toolbar mToolbar;
     private RecyclerView mRecyclerView;
-    private String TAG = "BrowseFoldersActivity";
-    private String mPath;
+    private String TAG = "BrowseActivity";
+    private String mParentPath;
     private String mTitle;
     private static final int FILE_CODE = 1331;
+    private File[] fList;
+    // array of supported imageExtensions (use a List if you prefer)
+    public static ArrayList<String> imageExtensions = new ArrayList<>(Arrays.asList(new String[]{"gif", "png", "bmp", "jpg"}));
+    // array of supported videoExtensions (use a List if you prefer)
+    public static ArrayList<String> videoExtensions = new ArrayList<>(Arrays.asList(new String[]{
+            "mp4", "m4a", "3gp", "mkv", "wav", "3gp"}));
     // endregion
 
     // region Lifecycle Methods
@@ -58,12 +62,30 @@ public class BrowseFoldersActivity extends AppCompatActivity  implements FolderG
         if (intent != null) {
             Bundle extras = intent.getExtras();
             if (extras != null) {
-                mImages = extras.getStringArrayList("images");
-                mPaletteColorType = (PaletteColorType) extras.get("palette_color_type");
-                mPath = extras.getString("path", null);
+                mParentPath = extras.getString("path", null);
                 mTitle = extras.getString("title", "");
             }
         }
+        File parentFile = new File(mParentPath);
+        final ArrayList<String> allExtensions = new ArrayList<>(imageExtensions);
+        allExtensions.addAll(videoExtensions);
+        fList = parentFile.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File current, String name) {
+                File childFile = new File(current, name);
+
+                if(childFile.isDirectory()) {
+                    return true;
+                } else {
+                    String currentFileNameExtension = name.substring(
+                            name.lastIndexOf('.')+1, name.length());
+                    if(allExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
 
         setSupportActionBar(mToolbar);
         ActionBar actionBar = getSupportActionBar();
@@ -130,28 +152,67 @@ public class BrowseFoldersActivity extends AppCompatActivity  implements FolderG
     // region ImageGalleryAdapter.OnImageClickListener Methods
     @Override
     public void onImageClick(int position) {
-        String s = mImages.get(position);
+        File currentFile = fList[position];
+        String currentFileName = currentFile.getName();
 
-        File file = new File(mPath, s);
-        Log.d(TAG, " mPath:" + mPath);
-        String[] directories = file.list(new FilenameFilter() {
-            @Override
-            public boolean accept(File current, String name) {
-                return !(new File(current, name).isDirectory());
+        if (currentFile.isFile()) {
+
+            String currentFileNameExtension = currentFileName.substring(
+                    currentFileName.lastIndexOf('.')+1, currentFileName.length());
+
+            if(imageExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                File parent = new File(mParentPath);
+                String[] allImages = parent.list(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File current, String name) {
+                        File childFile = new File(current, name);
+//                        Log.d(TAG, "accept() called with: " + "current = [" + current + "], name = [" + name + "]");
+//                        Log.d(TAG, "current.isDirectory():"+childFile.isDirectory());
+                        if(childFile.isDirectory()) {
+                            return false;
+                        } else {
+                            Log.d(TAG, "Current file");
+                            String currentFileNameExtension = name.substring(
+                                    name.lastIndexOf('.')+1, name.length());
+                            Log.d(TAG, "currentFileNameExtension:"+currentFileNameExtension);
+                            if(imageExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                                Log.d(TAG, "accepted");
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                });
+                ArrayList<String> allImagesArray = new ArrayList<>(Arrays.asList(allImages));
+                for (int i = 0; i < allImagesArray.size(); i++) {
+                    String s = allImagesArray.get(i);
+                    if(s.equals(currentFileName)) {
+                        position = i;
+                    }
+                }
+
+                Log.d(TAG, "images:"+allImagesArray);
+                Log.d(TAG, "path:"+mParentPath);
+                Log.d(TAG, "position:"+position);
+                Intent intent = new Intent(this, FullScreenImageGalleryActivity.class);
+                intent.putStringArrayListExtra("images", allImagesArray);
+                intent.putExtra("position", position);
+                intent.putExtra("path", mParentPath);
+                startActivity(intent);
             }
-        });
-        ArrayList<String> strings = new ArrayList<>(Arrays.asList(directories));
 
-        Intent intent = new Intent(BrowseFoldersActivity.this, BrowseImagesActivity.class);
-        intent.putStringArrayListExtra("images", strings);
-        intent.putExtra("path", file.getAbsolutePath());
-        intent.putExtra("title", s);
+            else if(videoExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(currentFile.getAbsolutePath()));
+                intent.setDataAndType(Uri.parse(currentFile.getAbsolutePath()), "video/*");
+                startActivity(intent);
+            }
 
-        if (mPaletteColorType != null) {
-            intent.putExtra("palette_color_type", mPaletteColorType);
+        } else if (currentFile.isDirectory()) {
+            Intent intent = new Intent(this, BrowseActivity.class);
+            intent.putExtra("path", currentFile.getAbsolutePath());
+            intent.putExtra("title", currentFileName);
+            startActivity(intent);
         }
-
-        startActivity(intent);
     }
     // endregion
 
@@ -169,12 +230,12 @@ public class BrowseFoldersActivity extends AppCompatActivity  implements FolderG
             numOfColumns = 3;
         }
 
-        mRecyclerView.setLayoutManager(new GridLayoutManager(BrowseFoldersActivity.this, numOfColumns));
+        mRecyclerView.setLayoutManager(new GridLayoutManager(BrowseActivity.this, numOfColumns));
         mRecyclerView.addItemDecoration(new GridSpacesItemDecoration(ImageGalleryUtils.dp2px(this, 2), numOfColumns));
-        FolderGalleryAdapter folderGalleryAdapter = new FolderGalleryAdapter(mImages);
-        folderGalleryAdapter.setOnImageClickListener(this);
+        FolderAdapter folderAdapter = new FolderAdapter(fList);
+        folderAdapter.setOnImageClickListener(this);
 
-        mRecyclerView.setAdapter(folderGalleryAdapter);
+        mRecyclerView.setAdapter(folderAdapter);
     }
     // endregion
 
@@ -230,7 +291,7 @@ public class BrowseFoldersActivity extends AppCompatActivity  implements FolderG
                 return new File(current, name).isDirectory();
             }
         });
-        Intent intent = new Intent(this, BrowseFoldersActivity.class);
+        Intent intent = new Intent(this, BrowseActivity.class);
         ArrayList<String> strings = new ArrayList<>(Arrays.asList(directories));
         intent.putStringArrayListExtra("images", strings);
         intent.putExtra("path", path);

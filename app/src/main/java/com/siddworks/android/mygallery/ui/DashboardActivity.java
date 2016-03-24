@@ -21,9 +21,7 @@ import com.nononsenseapps.filepicker.FilePickerActivity;
 import com.siddworks.android.mygallery.R;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -125,16 +123,7 @@ public class DashboardActivity extends AppCompatActivity {
         prefs.edit().putString("Path", path).commit();
 
         File file = new File(path);
-        location.setText(path);
-        String[] directories = file.list(new FilenameFilter() {
-            @Override
-            public boolean accept(File current, String name) {
-                return new File(current, name).isDirectory();
-            }
-        });
-        Intent intent = new Intent(this, BrowseFoldersActivity.class);
-        ArrayList<String> strings = new ArrayList<>(Arrays.asList(directories));
-        intent.putStringArrayListExtra("images", strings);
+        Intent intent = new Intent(this, BrowseActivity.class);
         intent.putExtra("path", path);
         intent.putExtra("title", file.getName());
         startActivity(intent);

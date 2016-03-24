@@ -32,7 +32,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.BrowseFoldersActivity"
+            android:name=".ui.BrowseActivity"
             android:label="@string/title_activity_browse_folders"
             android:theme="@style/ThemeWhiteTitleBar" />
         <activity

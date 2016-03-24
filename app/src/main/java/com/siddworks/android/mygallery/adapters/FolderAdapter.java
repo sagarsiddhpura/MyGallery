@@ -1,5 +1,8 @@
 package com.siddworks.android.mygallery.adapters;
 
+import android.graphics.Bitmap;
+import android.media.ThumbnailUtils;
+import android.provider.MediaStore;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,17 +12,19 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.siddworks.android.mygallery.R;
+import com.siddworks.android.mygallery.ui.BrowseActivity;
 import com.siddworks.android.mygallery.util.ImageGalleryUtils;
+import com.squareup.picasso.Picasso;
 
-import java.util.List;
+import java.io.File;
 
 /**
  * Created by SIDD on 19-Mar-16.
  */
-public class FolderGalleryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+public class FolderAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     // region Member Variables
-    private final List<String> mImages;
+    private final File[] mFiles;
     private int mGridItemWidth;
     private int mGridItemHeight;
     private OnImageClickListener mOnImageClickListener;
@@ -32,8 +37,8 @@ public class FolderGalleryAdapter extends RecyclerView.Adapter<RecyclerView.View
     // endregion
 
     // region Constructors
-    public FolderGalleryAdapter(List<String> images) {
-        mImages = images;
+    public FolderAdapter(File[] images) {
+        mFiles = images;
     }
     // endregion
 
@@ -49,15 +54,28 @@ public class FolderGalleryAdapter extends RecyclerView.Adapter<RecyclerView.View
     public void onBindViewHolder(RecyclerView.ViewHolder viewHolder, int position) {
         final ImageViewHolder holder = (ImageViewHolder) viewHolder;
 
-        String image = mImages.get(position);
-        holder.mTextView.setText(image);
-//        setUpImage(holder.mTextView, image);
+        File file = mFiles[position];
+        String name = file.getName();
+        holder.mTextView.setText(name);
+
+        if (file.isFile()) {
+            String currentFileNameExtension = name.substring(
+                    name.lastIndexOf('.')+1, name.length());
+            if(BrowseActivity.imageExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                setUpImage(holder.mImageView, file);
+            } else if(BrowseActivity.videoExtensions.contains(currentFileNameExtension.toLowerCase())) {
+                setUpVideo(holder.mImageView, file);
+            }
+
+        } else if (file.isDirectory()) {
+            setUpImage(holder.mImageView, R.mipmap.ic_folder);
+        }
 
         holder.mFrameLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 int adapterPos = holder.getAdapterPosition();
-                if(adapterPos != RecyclerView.NO_POSITION){
+                if (adapterPos != RecyclerView.NO_POSITION) {
                     if (mOnImageClickListener != null) {
                         mOnImageClickListener.onImageClick(adapterPos);
                     }
@@ -66,10 +84,15 @@ public class FolderGalleryAdapter extends RecyclerView.Adapter<RecyclerView.View
         });
     }
 
+    private void setUpVideo(ImageView mImageView, File file) {
+        Bitmap bMap = ThumbnailUtils.createVideoThumbnail(file.getAbsolutePath(), MediaStore.Video.Thumbnails.MICRO_KIND);
+        mImageView.setImageBitmap(bMap);
+    }
+
     @Override
     public int getItemCount() {
-        if (mImages != null) {
-            return mImages.size();
+        if (mFiles != null) {
+            return mFiles.length;
         } else {
             return 0;
         }
@@ -78,6 +101,22 @@ public class FolderGalleryAdapter extends RecyclerView.Adapter<RecyclerView.View
     // region Helper Methods
     public void setOnImageClickListener(OnImageClickListener listener) {
         this.mOnImageClickListener = listener;
+    }
+
+    private void setUpImage(ImageView iv, File imageUrl) {
+        Picasso.with(iv.getContext())
+                .load(imageUrl)
+                .resize(mGridItemWidth, mGridItemHeight)
+                .centerCrop()
+                .into(iv);
+    }
+
+    private void setUpImage(ImageView iv, int imageUrl) {
+        Picasso.with(iv.getContext())
+                .load(imageUrl)
+                .resize(mGridItemWidth, mGridItemHeight)
+                .centerCrop()
+                .into(iv);
     }
 
     private ViewGroup.LayoutParams getGridItemLayoutParams(View view) {
